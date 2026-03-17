@@ -13,6 +13,8 @@ namespace LiveCaptionsTranslator.models
     {
         LiveCaptions,
         Vosk,
+        WhisperSmall,
+        WhisperMedium,
     }
 
     public class Setting : INotifyPropertyChanged
@@ -29,6 +31,8 @@ namespace LiveCaptionsTranslator.models
 
         private STTEngine sttEngine = STTEngine.LiveCaptions;
         private string voskModelPath = string.Empty;
+        private string whisperModelPath = string.Empty;
+        private string whisperLanguage = "de";
 
         private string apiName;
         private string targetLanguage;
@@ -97,6 +101,26 @@ namespace LiveCaptionsTranslator.models
             {
                 voskModelPath = value;
                 OnPropertyChanged("VoskModelPath");
+            }
+        }
+
+        public string WhisperModelPath
+        {
+            get => whisperModelPath;
+            set
+            {
+                whisperModelPath = value;
+                OnPropertyChanged("WhisperModelPath");
+            }
+        }
+
+        public string WhisperLanguage
+        {
+            get => whisperLanguage;
+            set
+            {
+                whisperLanguage = value;
+                OnPropertyChanged("WhisperLanguage");
             }
         }
 

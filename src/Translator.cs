@@ -27,6 +27,7 @@ namespace LiveCaptionsTranslator
         public static Setting? Setting => setting;
 
         public static VoskSTTHandler VoskHandler { get; } = new VoskSTTHandler();
+        public static WhisperSTTHandler WhisperHandler { get; } = new WhisperSTTHandler();
 
         public static bool LogOnlyFlag { get; set; } = false;
         public static bool FirstUseFlag { get; set; } = false;
@@ -61,6 +62,21 @@ namespace LiveCaptionsTranslator
                     LiveCaptionsHandler.HideLiveCaptions(window);
                 }
             }
+            else if (setting.STTEngine == STTEngine.WhisperSmall ||
+                     setting.STTEngine == STTEngine.WhisperMedium)
+            {
+                var ggmlType = GetWhisperModelType(setting.STTEngine);
+                // Fall back to LiveCaptions if the model file is missing at startup.
+                bool started = WhisperHandler.TryStart(setting.WhisperModelPath, ggmlType,
+                    setting.WhisperLanguage);
+                if (!started)
+                {
+                    setting.STTEngine = STTEngine.LiveCaptions;
+                    window = LiveCaptionsHandler.LaunchLiveCaptions();
+                    LiveCaptionsHandler.FixLiveCaptions(window);
+                    LiveCaptionsHandler.HideLiveCaptions(window);
+                }
+            }
         }
 
         public static void SyncLoop()
@@ -75,6 +91,16 @@ namespace LiveCaptionsTranslator
                 if (Setting?.STTEngine == STTEngine.Vosk)
                 {
                     fullText = VoskHandler.GetCaptions();
+                    if (string.IsNullOrEmpty(fullText))
+                    {
+                        Thread.Sleep(25);
+                        continue;
+                    }
+                }
+                else if (Setting?.STTEngine == STTEngine.WhisperSmall ||
+                         Setting?.STTEngine == STTEngine.WhisperMedium)
+                {
+                    fullText = WhisperHandler.GetCaptions();
                     if (string.IsNullOrEmpty(fullText))
                     {
                         Thread.Sleep(25);
@@ -382,6 +408,7 @@ namespace LiveCaptionsTranslator
         {
             if (engine == STTEngine.Vosk)
             {
+                WhisperHandler.Stop();
                 if (!VoskHandler.IsRunning)
                 {
                     bool started = await Task.Run(() =>
@@ -395,9 +422,31 @@ namespace LiveCaptionsTranslator
                     }
                 }
             }
+            else if (engine == STTEngine.WhisperSmall || engine == STTEngine.WhisperMedium)
+            {
+                VoskHandler.Stop();
+                // Stop the current Whisper instance if a different model size is now needed.
+                if (WhisperHandler.IsRunning)
+                    WhisperHandler.Stop();
+
+                var ggmlType = GetWhisperModelType(engine);
+                bool started = await Task.Run(() =>
+                    WhisperHandler.TryStart(
+                        Setting?.WhisperModelPath ?? string.Empty,
+                        ggmlType,
+                        Setting?.WhisperLanguage ?? "de"));
+                if (!started)
+                {
+                    SnackbarHost.Show("[ERROR] Whisper STT failed to start.",
+                        WhisperHandler.LastError ?? "Unknown error",
+                        SnackbarType.Error, timeout: 5, closeButton: true);
+                    return;
+                }
+            }
             else // STTEngine.LiveCaptions
             {
                 VoskHandler.Stop();
+                WhisperHandler.Stop();
                 if (Window == null)
                 {
                     try
@@ -418,6 +467,12 @@ namespace LiveCaptionsTranslator
             if (Setting != null)
                 Setting.STTEngine = engine;
         }
+
+        // Maps a WhisperSmall/WhisperMedium engine value to the Whisper.net GgmlType.
+        public static Whisper.net.Ggml.GgmlType GetWhisperModelType(STTEngine engine) =>
+            engine == STTEngine.WhisperMedium
+                ? Whisper.net.Ggml.GgmlType.Medium
+                : Whisper.net.Ggml.GgmlType.Small;
 
         // If this text is too similar to the last one, overwrite it when logging.
         public static async Task<bool> IsOverwrite(string originalText, CancellationToken token = default)

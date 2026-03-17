@@ -25,6 +25,7 @@ namespace LiveCaptionsTranslator
             }
 
             Translator.VoskHandler.Dispose();
+            Translator.WhisperHandler.Dispose();
         }
     }
 }
