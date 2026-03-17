@@ -129,7 +129,7 @@ namespace LiveCaptionsTranslator.utils
                 Directory.CreateDirectory(dir);
 
                 using var modelStream =
-                    await WhisperGgmlDownloader.GetGgmlModelAsync(ggmlType).ConfigureAwait(false);
+                    await WhisperGgmlDownloader.Default.GetGgmlModelAsync(ggmlType).ConfigureAwait(false);
                 using var fileStream = File.Create(targetPath);
                 await modelStream.CopyToAsync(fileStream).ConfigureAwait(false);
 
