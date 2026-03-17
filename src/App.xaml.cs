@@ -23,6 +23,8 @@ namespace LiveCaptionsTranslator
                 LiveCaptionsHandler.RestoreLiveCaptions(Translator.Window);
                 LiveCaptionsHandler.KillLiveCaptions(Translator.Window);
             }
+
+            Translator.VoskHandler.Dispose();
         }
     }
 }

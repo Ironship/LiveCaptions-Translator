@@ -22,6 +22,42 @@
         <StackPanel Grid.Column="0" Orientation="Vertical">
             <StackPanel Margin="15,0,0,0" Orientation="Vertical">
                 <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                    <TextBlock Margin="2.5,0,0,5" Text="STT Engine" />
+                    <ui:Flyout x:Name="STTEngineInfoFlyout">
+                        <TextBlock Width="320" TextWrapping="Wrap">
+                            <Run FontWeight="Bold" Text="LiveCaptions:" />
+                            <Run Text="Uses Windows built-in speech recognition (Windows 11 22H2+)." />
+                            <Run FontWeight="Bold" Text="&#x0A;&#x0A;Vosk:" />
+                            <Run Text="Offline engine with excellent German support and low latency. Download a model from" />
+                            <Run FontWeight="Bold" Text="https://alphacephei.com/vosk/models" />
+                            <Run Text="(e.g. vosk-model-de or vosk-model-small-de), extract it, and set the folder path below." />
+                        </TextBlock>
+                    </ui:Flyout>
+                    <Button
+                        x:Name="STTEngineInfo"
+                        Width="15"
+                        Height="15"
+                        Margin="-5,-3,0,0"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        MouseEnter="STTEngineInfo_MouseEnter"
+                        MouseLeave="STTEngineInfo_MouseLeave">
+                        <ui:SymbolIcon Symbol="Info16" />
+                    </Button>
+                </StackPanel>
+                <ComboBox
+                    x:Name="STTEngineBox"
+                    Width="150"
+                    Height="30"
+                    Padding="10,4,10,7"
+                    FontSize="13.3"
+                    SelectionChanged="STTEngineBox_SelectionChanged" />
+            </StackPanel>
+
+            <!--  Engine-specific controls  -->
+            <StackPanel x:Name="LiveCaptionsPanel" Margin="15,10,0,0" Orientation="Vertical">
+                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                     <TextBlock Margin="2.5,0,0,5" Text="LiveCaptions" />
                     <ui:Flyout x:Name="LiveCaptionsInfoFlyout">
                         <TextBlock Width="300" TextWrapping="Wrap">
@@ -55,6 +91,54 @@
                     Click="LiveCaptionsButton_click">
                     <TextBlock x:Name="ButtonText" Text="Show" />
                 </ui:Button>
+            </StackPanel>
+
+            <StackPanel x:Name="VoskPanel" Margin="15,10,0,0" Orientation="Vertical" Visibility="Collapsed">
+                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                    <TextBlock Margin="2.5,0,0,5" Text="Model Path" />
+                    <ui:Flyout x:Name="VoskModelPathInfoFlyout">
+                        <TextBlock Width="300" TextWrapping="Wrap">
+                            <Run Text="Path to the extracted Vosk model folder." />
+                            <Run FontWeight="Bold" Text="&#x0A;&#x0A;Recommended German models:" />
+                            <Run Text="&#x0A;• vosk-model-small-de (45 MB, fast)" />
+                            <Run Text="&#x0A;• vosk-model-de (1.8 GB, accurate)" />
+                            <Run Text="&#x0A;&#x0A;Download from https://alphacephei.com/vosk/models" />
+                        </TextBlock>
+                    </ui:Flyout>
+                    <Button
+                        x:Name="VoskModelPathInfo"
+                        Width="15"
+                        Height="15"
+                        Margin="-5,-3,0,0"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        MouseEnter="VoskModelPathInfo_MouseEnter"
+                        MouseLeave="VoskModelPathInfo_MouseLeave">
+                        <ui:SymbolIcon Symbol="Info16" />
+                    </Button>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBox
+                        x:Name="VoskModelPathBox"
+                        Width="120"
+                        Height="30"
+                        Padding="6,4,6,4"
+                        FontSize="11"
+                        LostFocus="VoskModelPathBox_LostFocus"
+                        Text="{Binding VoskModelPath, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                        ToolTip="Full path to the Vosk model folder" />
+                    <ui:Button
+                        x:Name="VoskBrowseButton"
+                        Width="30"
+                        Height="30"
+                        Margin="4,0,0,0"
+                        Padding="4"
+                        Click="VoskBrowseButton_Click"
+                        ToolTip="Browse for model folder">
+                        <ui:SymbolIcon Symbol="FolderOpen24" />
+                    </ui:Button>
+                </StackPanel>
             </StackPanel>
 
             <StackPanel Margin="15,10,0,0" Orientation="Vertical">

@@ -26,6 +26,8 @@ namespace LiveCaptionsTranslator
         public static Caption? Caption => caption;
         public static Setting? Setting => setting;
 
+        public static VoskSTTHandler VoskHandler { get; } = new VoskSTTHandler();
+
         public static bool LogOnlyFlag { get; set; } = false;
         public static bool FirstUseFlag { get; set; } = false;
 
@@ -33,15 +35,32 @@ namespace LiveCaptionsTranslator
 
         static Translator()
         {
-            window = LiveCaptionsHandler.LaunchLiveCaptions();
-            LiveCaptionsHandler.FixLiveCaptions(Window);
-            LiveCaptionsHandler.HideLiveCaptions(Window);
-
             if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), models.Setting.FILENAME)))
                 FirstUseFlag = true;
 
             caption = Caption.GetInstance();
             setting = Setting.Load();
+
+            if (setting.STTEngine == STTEngine.LiveCaptions)
+            {
+                window = LiveCaptionsHandler.LaunchLiveCaptions();
+                LiveCaptionsHandler.FixLiveCaptions(window);
+                LiveCaptionsHandler.HideLiveCaptions(window);
+            }
+            else if (setting.STTEngine == STTEngine.Vosk &&
+                     !string.IsNullOrWhiteSpace(setting.VoskModelPath))
+            {
+                // If Vosk fails to start (e.g. model missing), fall back to LiveCaptions so the
+                // app remains usable. The user can re-select Vosk after fixing the model path.
+                bool started = VoskHandler.TryStart(setting.VoskModelPath);
+                if (!started)
+                {
+                    setting.STTEngine = STTEngine.LiveCaptions;
+                    window = LiveCaptionsHandler.LaunchLiveCaptions();
+                    LiveCaptionsHandler.FixLiveCaptions(window);
+                    LiveCaptionsHandler.HideLiveCaptions(window);
+                }
+            }
         }
 
         public static void SyncLoop()
@@ -51,28 +70,41 @@ namespace LiveCaptionsTranslator
 
             while (true)
             {
-                if (Window == null)
-                {
-                    Thread.Sleep(2000);
-                    continue;
-                }
-
                 string fullText = string.Empty;
-                try
+
+                if (Setting?.STTEngine == STTEngine.Vosk)
                 {
-                    // Check LiveCaptions.exe still alive
-                    var info = Window.Current;
-                    var name = info.Name;
-                    // Get the text recognized by LiveCaptions (10-20ms)
-                    fullText = LiveCaptionsHandler.GetCaptions(Window);
+                    fullText = VoskHandler.GetCaptions();
+                    if (string.IsNullOrEmpty(fullText))
+                    {
+                        Thread.Sleep(25);
+                        continue;
+                    }
                 }
-                catch (ElementNotAvailableException)
+                else
                 {
-                    Window = null;
-                    continue;
+                    if (Window == null)
+                    {
+                        Thread.Sleep(2000);
+                        continue;
+                    }
+
+                    try
+                    {
+                        // Check LiveCaptions.exe still alive
+                        var info = Window.Current;
+                        var name = info.Name;
+                        // Get the text recognized by LiveCaptions (10-20ms)
+                        fullText = LiveCaptionsHandler.GetCaptions(Window);
+                    }
+                    catch (ElementNotAvailableException)
+                    {
+                        Window = null;
+                        continue;
+                    }
+                    if (string.IsNullOrEmpty(fullText))
+                        continue;
                 }
-                if (string.IsNullOrEmpty(fullText))
-                    continue;
 
                 // Preprocess
                 fullText = RegexPatterns.Acronym().Replace(fullText, "$1$2");
@@ -161,8 +193,9 @@ namespace LiveCaptionsTranslator
         {
             while (true)
             {
-                // Check LiveCaptions.exe still alive
-                if (Window == null)
+                // When using LiveCaptions, restart it if it was unexpectedly closed.
+                // When using Vosk, the Window reference is null by design — skip this check.
+                if (Window == null && Setting?.STTEngine == STTEngine.LiveCaptions)
                 {
                     Caption.DisplayTranslatedCaption = "[WARNING] LiveCaptions was unexpectedly closed, restarting...";
                     Window = LiveCaptionsHandler.LaunchLiveCaptions();
@@ -340,6 +373,50 @@ namespace LiveCaptionsTranslator
 
             Caption?.OnPropertyChanged("DisplayLogCards");
             Caption?.OnPropertyChanged("OverlayPreviousTranslation");
+        }
+
+        // Switches the active STT engine at runtime.
+        // When switching to Vosk, the Vosk model must already be configured.
+        // When switching to LiveCaptions, LiveCaptions is (re-)launched if needed.
+        public static async Task SwitchSTTEngine(STTEngine engine)
+        {
+            if (engine == STTEngine.Vosk)
+            {
+                if (!VoskHandler.IsRunning)
+                {
+                    bool started = await Task.Run(() =>
+                        VoskHandler.TryStart(Setting?.VoskModelPath ?? string.Empty));
+                    if (!started)
+                    {
+                        SnackbarHost.Show("[ERROR] Vosk STT failed to start.",
+                            VoskHandler.LastError ?? "Unknown error",
+                            SnackbarType.Error, timeout: 5, closeButton: true);
+                        return;
+                    }
+                }
+            }
+            else // STTEngine.LiveCaptions
+            {
+                VoskHandler.Stop();
+                if (Window == null)
+                {
+                    try
+                    {
+                        Window = await Task.Run(LiveCaptionsHandler.LaunchLiveCaptions);
+                        LiveCaptionsHandler.FixLiveCaptions(Window);
+                        LiveCaptionsHandler.HideLiveCaptions(Window);
+                    }
+                    catch (Exception ex)
+                    {
+                        SnackbarHost.Show("[ERROR] Failed to launch LiveCaptions.",
+                            ex.Message, SnackbarType.Error, timeout: 5, closeButton: true);
+                        return;
+                    }
+                }
+            }
+
+            if (Setting != null)
+                Setting.STTEngine = engine;
         }
 
         // If this text is too similar to the last one, overwrite it when logging.
