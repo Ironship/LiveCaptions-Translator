@@ -32,7 +32,7 @@ namespace LiveCaptionsTranslator.utils
             for (int i = 0; i < splits.Length; i++)
             {
                 splits[i] = splits[i].Trim();
-                if (i == splits.Length - 1)
+                if (i == splits.Length - 1 || string.IsNullOrEmpty(splits[i]))
                     continue;
 
                 char lastChar = splits[i][^1];
