@@ -8,6 +8,17 @@ on:
       - "v*"
   pull_request:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g., v1.8.0). Must be provided when create_release is true.'
+        required: false
+        default: ''
+        type: string
+      create_release:
+        description: 'Create a GitHub Release after building'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -29,16 +40,16 @@ jobs:
       - name: Build
         run: |
           dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o ./publish/x64/selfcontained
-          del ./publish/x64/selfcontained/*.pdb 2>nul || echo "No pdb found in x64 selfcontained"
+          Remove-Item -Path ./publish/x64/selfcontained/*.pdb -Force -ErrorAction SilentlyContinue
 
           dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o ./publish/x64/framework
-          del ./publish/x64/framework/*.pdb 2>nul || echo "No pdb found in x64 framework"
+          Remove-Item -Path ./publish/x64/framework/*.pdb -Force -ErrorAction SilentlyContinue
 
           dotnet publish -c Release -r win-arm64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o ./publish/arm64/selfcontained
-          del ./publish/arm64/selfcontained/*.pdb 2>nul || echo "No pdb found in arm64 selfcontained"
+          Remove-Item -Path ./publish/arm64/selfcontained/*.pdb -Force -ErrorAction SilentlyContinue
 
           dotnet publish -c Release -r win-arm64 --self-contained false -p:PublishSingleFile=true -o ./publish/arm64/framework
-          del ./publish/arm64/framework/*.pdb 2>nul || echo "No pdb found in arm64 framework"
+          Remove-Item -Path ./publish/arm64/framework/*.pdb -Force -ErrorAction SilentlyContinue
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -50,11 +61,19 @@ jobs:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
     permissions:
       contents: write
 
     steps:
+      - name: Validate inputs
+        if: github.event_name == 'workflow_dispatch' && inputs.create_release
+        run: |
+          if [ -z "${{ inputs.version }}" ]; then
+            echo "Error: 'version' input must be provided when 'create_release' is true."
+            exit 1
+          fi
+
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -72,6 +91,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           files: |
             release/LiveCaptionsTranslator-win-x64.exe
             release/LiveCaptionsTranslator-win-x64-withruntime.exe
