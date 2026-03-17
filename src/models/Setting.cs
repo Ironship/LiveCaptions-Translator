@@ -9,6 +9,14 @@ using LiveCaptionsTranslator.apis;
 
 namespace LiveCaptionsTranslator.models
 {
+    public enum STTEngine
+    {
+        LiveCaptions,
+        Vosk,
+        WhisperSmall,
+        WhisperMedium,
+    }
+
     public class Setting : INotifyPropertyChanged
     {
         public static readonly string FILENAME = "setting.json";
@@ -20,6 +28,11 @@ namespace LiveCaptionsTranslator.models
         private int numContexts = 2;
         private int displaySentences = 1;
         private bool contextAware = false;
+
+        private STTEngine sttEngine = STTEngine.LiveCaptions;
+        private string voskModelPath = string.Empty;
+        private string whisperModelPath = string.Empty;
+        private string whisperLanguage = "de";
 
         private string apiName;
         private string targetLanguage;
@@ -68,6 +81,46 @@ namespace LiveCaptionsTranslator.models
             {
                 contextAware = value;
                 OnPropertyChanged("ContextAware");
+            }
+        }
+
+        public STTEngine STTEngine
+        {
+            get => sttEngine;
+            set
+            {
+                sttEngine = value;
+                OnPropertyChanged("STTEngine");
+            }
+        }
+
+        public string VoskModelPath
+        {
+            get => voskModelPath;
+            set
+            {
+                voskModelPath = value;
+                OnPropertyChanged("VoskModelPath");
+            }
+        }
+
+        public string WhisperModelPath
+        {
+            get => whisperModelPath;
+            set
+            {
+                whisperModelPath = value;
+                OnPropertyChanged("WhisperModelPath");
+            }
+        }
+
+        public string WhisperLanguage
+        {
+            get => whisperLanguage;
+            set
+            {
+                whisperLanguage = value;
+                OnPropertyChanged("WhisperLanguage");
             }
         }
 

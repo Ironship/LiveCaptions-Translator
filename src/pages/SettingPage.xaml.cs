@@ -26,6 +26,11 @@ namespace LiveCaptionsTranslator
                 CheckForFirstUse();
             };
 
+            // Populate STT engine selector using the exact enum names so SelectedItem matching works.
+            STTEngineBox.ItemsSource = Enum.GetNames(typeof(STTEngine));
+            STTEngineBox.SelectedItem = (Translator.Setting?.STTEngine ?? STTEngine.LiveCaptions).ToString();
+            UpdateSTTEngineUI(Translator.Setting?.STTEngine ?? STTEngine.LiveCaptions);
+
             TranslateAPIBox.ItemsSource = Translator.Setting?.Configs.Keys;
             TranslateAPIBox.SelectedIndex = 0;
 
@@ -50,6 +55,48 @@ namespace LiveCaptionsTranslator
             {
                 LiveCaptionsHandler.HideLiveCaptions(Translator.Window);
                 ButtonText.Text = "Show";
+            }
+        }
+
+        private void STTEngineBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (STTEngineBox.SelectedItem == null)
+                return;
+
+            if (!Enum.TryParse(STTEngineBox.SelectedItem.ToString(), out STTEngine engine))
+                return;
+
+            UpdateSTTEngineUI(engine);
+            // Fire-and-forget: SelectionChanged cannot be async. Errors are surfaced via SnackbarHost.
+            _ = Translator.SwitchSTTEngine(engine);
+        }
+
+        private void UpdateSTTEngineUI(STTEngine engine)
+        {
+            bool isVosk = engine == STTEngine.Vosk;
+            LiveCaptionsPanel.Visibility = isVosk ? Visibility.Collapsed : Visibility.Visible;
+            VoskPanel.Visibility = isVosk ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void VoskModelPathBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (Translator.Setting != null)
+                Translator.Setting.VoskModelPath = VoskModelPathBox.Text;
+        }
+
+        private void VoskBrowseButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Select the Vosk model folder",
+                InitialDirectory = VoskModelPathBox.Text
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                VoskModelPathBox.Text = dialog.FolderName;
+                if (Translator.Setting != null)
+                    Translator.Setting.VoskModelPath = dialog.FolderName;
             }
         }
 
@@ -95,6 +142,16 @@ namespace LiveCaptionsTranslator
             Translator.Caption.OnPropertyChanged("OverlayPreviousTranslation");
         }
 
+        private void STTEngineInfo_MouseEnter(object sender, MouseEventArgs e)
+        {
+            STTEngineInfoFlyout.Show();
+        }
+
+        private void STTEngineInfo_MouseLeave(object sender, MouseEventArgs e)
+        {
+            STTEngineInfoFlyout.Hide();
+        }
+
         private void LiveCaptionsInfo_MouseEnter(object sender, MouseEventArgs e)
         {
             LiveCaptionsInfoFlyout.Show();
@@ -103,6 +160,16 @@ namespace LiveCaptionsTranslator
         private void LiveCaptionsInfo_MouseLeave(object sender, MouseEventArgs e)
         {
             LiveCaptionsInfoFlyout.Hide();
+        }
+
+        private void VoskModelPathInfo_MouseEnter(object sender, MouseEventArgs e)
+        {
+            VoskModelPathInfoFlyout.Show();
+        }
+
+        private void VoskModelPathInfo_MouseLeave(object sender, MouseEventArgs e)
+        {
+            VoskModelPathInfoFlyout.Hide();
         }
 
         private void FrequencyInfo_MouseEnter(object sender, MouseEventArgs e)

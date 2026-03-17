@@ -32,7 +32,9 @@ namespace LiveCaptionsTranslator.utils
             for (int i = 0; i < splits.Length; i++)
             {
                 splits[i] = splits[i].Trim();
-                if (i == splits.Length - 1)
+                // Skip empty segments that can arise from consecutive newlines (e.g. "\n\n").
+                // Without this guard, accessing splits[i][^1] on an empty string would throw.
+                if (i == splits.Length - 1 || string.IsNullOrEmpty(splits[i]))
                     continue;
 
                 char lastChar = splits[i][^1];

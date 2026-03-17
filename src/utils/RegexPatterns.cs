@@ -13,7 +13,9 @@ namespace LiveCaptionsTranslator.utils
         public static partial Regex AcronymWithWords();
 
         // Remove redundant spaces and `\n` around punctuation.
-        [GeneratedRegex(@"\s*([.!?,])\s*")]
+        // Use digit-aware lookbehind/lookahead to preserve decimal numbers (e.g. "3.14") and
+        // thousands separators (e.g. "100,000").
+        [GeneratedRegex(@"(?<!\d)\s*([.!?,])\s*(?!\d)")]
         public static partial Regex PunctuationSpace();
 
         // If it is Chinese or Japanese punctuation, no need to insert spaces.
